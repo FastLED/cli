@@ -20,27 +20,24 @@ regression from coming back into a different module.
 
 ## Toolchain
 
-Builds against `nightly-2026-03-26` (see `rust-toolchain.toml`). The main
+Builds against `nightly-2026-05-28` (see `rust-toolchain.toml`). The main
 workspace stays on stable; this sub-crate is intentionally not in the
 workspace. The local `[workspace]` table in `Cargo.toml` keeps Cargo from
 implicitly attaching this crate to the parent stable workspace.
 
 ## Running
 
-The repository `./lint` script runs this lint after `cargo clippy`. It builds
-the lint with the pinned nightly in a short target directory, copies the shared
-library to Dylint's required `@toolchain` filename, then passes that file to
-Dylint with `--lib-path`. The Dylint invocation keeps rustup shims ahead of any
-direct toolchain binaries so Dylint's internal driver build can resolve the
-nightly toolchain:
+The repository `./lint` script runs this lint after `cargo clippy`. Soldr
+prepares the published Dylint tools and driver for the pinned nightly;
+`.cargo/config.toml` directs the lint crate through `dylint-link` to emit
+the toolchain-suffixed library Dylint expects:
 
 ```bash
 ./lint
 ```
 
-The root `rust-toolchain.toml` remains stable. Only the Dylint build/check
-invocation sets `RUSTUP_TOOLCHAIN=nightly-2026-03-26`, which is required by
-`rustc_private`.
+The root `rust-toolchain.toml` remains stable. The Dylint build/check clears
+the ambient stable `RUSTUP_TOOLCHAIN` so Soldr selects the pinned nightly.
 
 ## Reference
 

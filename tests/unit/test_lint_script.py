@@ -14,6 +14,9 @@ pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell stu
 
 _STUB_SCRIPT = """#!/bin/sh
 printf '%s\\n' "$(basename "$0") $*" >> "$LINT_STUB_LOG"
+if [ "$(basename "$0") $1 $2" = "soldr dylint prepare" ]; then
+  exit 1
+fi
 exit 0
 """
 
@@ -102,8 +105,9 @@ def test_python_stages_run_and_cover_ci_without_dylint(tmp_path: Path) -> None:
         for line in log_lines
     )
 
-    # No cargo-dylint invocation should have been attempted at all.
-    assert not any("cargo-dylint" in line for line in log_lines)
+    # Preparation fails closed, so the Dylint pass cannot run.
+    assert "soldr dylint prepare" in log_lines
+    assert "soldr dylint --all -- --workspace --all-targets" not in log_lines
 
 
 def test_missing_dylint_is_a_hard_failure_in_ci(tmp_path: Path) -> None:
