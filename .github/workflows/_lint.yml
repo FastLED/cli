@@ -10,6 +10,10 @@ on:
       runs-on:
         required: true
         type: string
+      run-dylint:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   lint:
@@ -77,7 +81,7 @@ jobs:
           # Native dylint caching: caches cargo-dylint/dylint-link binaries and
           # the dylint driver dir, exposing dylint-cache-hit so we can skip the
           # expensive cargo installs below (#170).
-          dylint-cache: true
+          dylint-cache: ${{ inputs.run-dylint }}
           dylint-toolchain: nightly-2026-05-28
           cargo-dylint-version: "6.0.3"
           dylint-link-version: "6.0.3"
@@ -86,10 +90,15 @@ jobs:
         run: uv sync --group dev
 
       - name: Prepare published Dylint tools
+        if: inputs.run-dylint
         run: env -u RUSTUP_TOOLCHAIN soldr dylint prepare
 
-      - name: Lint
+      - name: Lint with Dylint
+        if: inputs.run-dylint
         run: ./lint
+      - name: Lint without Dylint
+        if: ${{ !inputs.run-dylint }}
+        run: ./lint --skip-dylint
 
       - name: Upload failure logs
         if: failure()

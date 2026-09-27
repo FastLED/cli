@@ -29,7 +29,7 @@ def _path_entry_has_dylint_or_rustup(entry: str) -> bool:
 
 
 def _run_lint(
-    tmp_path: Path, *, ci: bool
+    tmp_path: Path, *, ci: bool, args: tuple[str, ...] = ()
 ) -> tuple[subprocess.CompletedProcess[str], list[str]]:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
@@ -58,7 +58,7 @@ def _run_lint(
         env.pop("CI", None)
 
     result = subprocess.run(
-        ["bash", str(REPO_ROOT / "lint")],
+        ["bash", str(REPO_ROOT / "lint"), *args],
         cwd=REPO_ROOT,
         env=env,
         capture_output=True,
@@ -120,6 +120,13 @@ def test_missing_dylint_is_a_hard_failure_in_ci(tmp_path: Path) -> None:
     assert _log_has_match(log_lines, r"^uv (run )?pyright src tests ci$")
 
 
+def test_explicit_skip_keeps_other_lints_but_does_not_run_dylint(tmp_path: Path) -> None:
+    result, log_lines = _run_lint(tmp_path, ci=True, args=("--skip-dylint",))
+    assert result.returncode == 0
+    assert any(line.startswith("soldr cargo clippy") for line in log_lines)
+    assert not any("dylint" in line for line in log_lines)
+
+
 def test_python_stages_precede_the_rust_stages(tmp_path: Path) -> None:
     _result, log_lines = _run_lint(tmp_path, ci=False)
 
@@ -144,10 +151,18 @@ def test_python_stages_precede_the_rust_stages(tmp_path: Path) -> None:
         "windows-x86-lint.yml",
     ],
 )
-def test_native_dylint_runs_on_unlabelled_pr(workflow: str) -> None:
+def test_native_lint_without_dylint_runs_on_unlabelled_pr(workflow: str) -> None:
     source = (REPO_ROOT / ".github" / "workflows" / workflow).read_text(
         encoding="utf-8"
     )
     assert "pull_request:" in source
     assert "uses: ./.github/workflows/_lint.yml" in source
+    assert "run-dylint: true" not in source
     assert "contains(github.event.pull_request.labels.*.name, 'ci-full')" not in source
+
+
+def test_only_linux_x86_runs_unified_dylint() -> None:
+    source = (REPO_ROOT / ".github" / "workflows" / "linux-x86-lint.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "run-dylint: true" in source
