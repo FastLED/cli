@@ -15,6 +15,8 @@ jobs:
   lint:
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: 30
+    env:
+      SOLDR_FORCE_MANAGED_CARGO_SUBCOMMANDS: "1"
     defaults:
       run:
         shell: bash
@@ -49,7 +51,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
 
-      - uses: zackees/setup-soldr@v0.9.62
+      - uses: zackees/setup-soldr@dfbe9627f6cb0226716b61625b99a58949162720 # v0.9.80
         id: soldr
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -76,37 +78,15 @@ jobs:
           # the dylint driver dir, exposing dylint-cache-hit so we can skip the
           # expensive cargo installs below (#170).
           dylint-cache: true
-          dylint-toolchain: nightly-2026-03-26
+          dylint-toolchain: nightly-2026-05-28
           cargo-dylint-version: "6.0.3"
           dylint-link-version: "6.0.3"
 
       - name: Sync Python deps
         run: uv sync --group dev
 
-      # The dylint nightly toolchain must land in the job's RUSTUP_HOME
-      # (setup-soldr exports a managed rustup home to all later steps), so use
-      # bare rustup here. Routing this through `soldr rustup` installs into
-      # soldr's private toolchain home instead, and the dylint driver build
-      # then fails with E0463 (can't find crate rustc_driver) because the
-      # rustc-dev components are invisible (#170 regression from #172).
-      # Unconditional: the nightly is not part of the dylint cache paths.
-      - name: Install Dylint nightly toolchain
-        run: rustup toolchain install nightly-2026-03-26 --profile minimal --component llvm-tools-preview,rust-src,rustc-dev
-
-      # Building cargo-dylint / dylint-link from source is the dominant fixed
-      # cost of every lint job (10+ min per platform). A restored cache should
-      # expose both binaries, but verify the commands themselves: a cache hit
-      # without a PATH-visible binary must not make the lint job fail.
-      - name: Install Dylint tools
-        run: |
-          DYLINT_VERSION="6.0.3"
-          if ! uv run python ci/lint_python/dylint_version_checker.py cargo-dylint "$DYLINT_VERSION"; then
-            soldr cargo install cargo-dylint --version "$DYLINT_VERSION" --locked --force
-          fi
-          if ! command -v dylint-link >/dev/null 2>&1; then
-            soldr cargo install dylint-link --version "$DYLINT_VERSION" --locked --force
-          fi
-          uv run python ci/lint_python/dylint_version_checker.py cargo-dylint "$DYLINT_VERSION"
+      - name: Prepare published Dylint tools
+        run: env -u RUSTUP_TOOLCHAIN soldr dylint prepare
 
       - name: Lint
         run: ./lint

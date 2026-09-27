@@ -73,9 +73,11 @@ def test_lint_entrypoints_enforce_the_exact_pin() -> None:
         encoding="utf-8"
     )
 
-    assert 'DYLINT_VERSION="6.0.3"' in lint_script
-    invocation = r'dylint_version_checker\.py"? cargo-dylint "\$DYLINT_VERSION"'
-    assert re.search(invocation, lint_script)
+    assert "soldr dylint prepare" in lint_script
+    assert "soldr dylint --all -- --workspace --all-targets" in lint_script
     assert 'cargo-dylint-version: "6.0.3"' in lint_workflow
-    assert 'DYLINT_VERSION="6.0.3"' in lint_workflow
-    assert len(re.findall(invocation, lint_workflow)) >= 2
+    assert "dylint-toolchain: nightly-2026-05-28" in lint_workflow
+    assert "soldr dylint prepare" in lint_workflow
+    assert "soldr cargo install cargo-dylint" not in lint_workflow
+    linker_config = (REPO_ROOT / "dylints/ban_std_pathbuf/.cargo/config.toml").read_text(encoding="utf-8")
+    assert 'rustflags = ["-C", "linker=dylint-link"]' in linker_config

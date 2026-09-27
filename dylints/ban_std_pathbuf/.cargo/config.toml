@@ -1,0 +1,4 @@
+# Dylint requires the toolchain-suffixed cdylib name. Its linker wrapper
+# produces that name on every host, without a post-build copy or retry.
+[target.'cfg(all())']
+rustflags = ["-C", "linker=dylint-link"]

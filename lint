@@ -29,101 +29,13 @@ soldr cargo fmt --all --check
 echo Running cargo clippy
 soldr cargo clippy --workspace --all-targets -- -D warnings
 
-DYLINT_VERSION="6.0.3"
-DYLINT_TOOLCHAIN="nightly-2026-03-26"
-DYLINT_DIR="$SCRIPT_DIR/dylints/ban_std_pathbuf"
-DYLINT_TARGET_DIR="${FASTLED_DYLINT_TARGET_DIR:-${RUNNER_TEMP:-${TMPDIR:-/tmp}}/fastled-dylint-target}"
-DYLINT_LIBRARY_DIR="$DYLINT_TARGET_DIR/dylint/libraries/$DYLINT_TOOLCHAIN"
-
-DYLINT_SKIP_REASON=""
-if ! command -v cargo-dylint &> /dev/null; then
-  DYLINT_SKIP_REASON="cargo-dylint $DYLINT_VERSION is not installed (soldr cargo install cargo-dylint --version $DYLINT_VERSION --locked)"
-elif ! uv run python "$SCRIPT_DIR/ci/lint_python/dylint_version_checker.py" cargo-dylint "$DYLINT_VERSION"; then
-  DYLINT_SKIP_REASON="cargo-dylint $DYLINT_VERSION is required (soldr cargo install cargo-dylint --version $DYLINT_VERSION --locked --force)"
-elif ! command -v rustup &> /dev/null; then
-  DYLINT_SKIP_REASON="rustup is required for cargo-dylint's internal driver build"
-fi
-
-if [ -n "$DYLINT_SKIP_REASON" ] && [ -n "${CI:-}" ]; then
-  echo "Error: dylint prerequisites are missing in CI: $DYLINT_SKIP_REASON" >&2
+echo Running ban_std_pathbuf dylint
+export SOLDR_FORCE_MANAGED_CARGO_SUBCOMMANDS=1
+if ! env -u RUSTUP_TOOLCHAIN soldr dylint prepare; then
+  echo "Error: dylint prerequisites are missing: soldr dylint prepare failed" >&2
   exit 1
 fi
+env -u RUSTUP_TOOLCHAIN soldr dylint --all -- --workspace --all-targets
 
-if [ -z "$DYLINT_SKIP_REASON" ]; then
-  echo Running ban_std_pathbuf dylint
-  RUSTUP_BIN="$(command -v rustup || true)"
-  # cargo-dylint 6.x's driver toolchain check requires RUSTUP_HOME to be set
-  # explicitly; CI exports it but local shells typically rely on rustup's
-  # implicit default and fail with "environment variable not found: RUSTUP_HOME".
-  export RUSTUP_HOME="${RUSTUP_HOME:-$("$RUSTUP_BIN" show home)}"
-  RUSTUP_BIN_DIR="$(dirname "$RUSTUP_BIN")"
-  DYLINT_CARGO_SHIM_DIR="$(mktemp -d)"
-  DYLINT_PREVIOUS_DEFAULT="$(rustup default 2>/dev/null | sed 's/ (default)$//')"
-
-  cleanup_dylint_toolchain() {
-    rm -rf "$DYLINT_CARGO_SHIM_DIR"
-    if [ -n "$DYLINT_PREVIOUS_DEFAULT" ]; then
-      rustup default "$DYLINT_PREVIOUS_DEFAULT" >/dev/null || true
-    fi
-  }
-  trap cleanup_dylint_toolchain EXIT
-
-  cat > "$DYLINT_CARGO_SHIM_DIR/cargo" <<EOF
-#!/bin/sh
-exec "$RUSTUP_BIN" run "$DYLINT_TOOLCHAIN" cargo "\$@"
-EOF
-  chmod +x "$DYLINT_CARGO_SHIM_DIR/cargo"
-  rustup default "$DYLINT_TOOLCHAIN" >/dev/null
-
-  (
-    cd "$DYLINT_DIR"
-    RUSTUP_TOOLCHAIN="$DYLINT_TOOLCHAIN" CARGO_TARGET_DIR="$DYLINT_LIBRARY_DIR" soldr cargo build --release
-  )
-
-  case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*)
-      DYLINT_BUILT_LIBRARY="$(find "$DYLINT_LIBRARY_DIR" -path "*/release/ban_std_pathbuf.dll" ! -path "*/deps/*" -print -quit)"
-      DYLINT_LIBRARY_NAME="ban_std_pathbuf@$DYLINT_TOOLCHAIN.dll"
-      ;;
-    Darwin*)
-      DYLINT_BUILT_LIBRARY="$(find "$DYLINT_LIBRARY_DIR" -path "*/release/libban_std_pathbuf.dylib" ! -path "*/deps/*" -print -quit)"
-      DYLINT_LIBRARY_NAME="libban_std_pathbuf@$DYLINT_TOOLCHAIN.dylib"
-      ;;
-    *)
-      DYLINT_BUILT_LIBRARY="$(find "$DYLINT_LIBRARY_DIR" -path "*/release/libban_std_pathbuf.so" ! -path "*/deps/*" -print -quit)"
-      DYLINT_LIBRARY_NAME="libban_std_pathbuf@$DYLINT_TOOLCHAIN.so"
-      ;;
-  esac
-
-  if [ -z "$DYLINT_BUILT_LIBRARY" ]; then
-    echo "Error: built ban_std_pathbuf dylint library was not found under $DYLINT_LIBRARY_DIR" >&2
-    exit 1
-  fi
-
-  DYLINT_NAMED_LIBRARY="$DYLINT_LIBRARY_DIR/release/$DYLINT_LIBRARY_NAME"
-  mkdir -p "$DYLINT_LIBRARY_DIR/release"
-  cp "$DYLINT_BUILT_LIBRARY" "$DYLINT_NAMED_LIBRARY"
-  # cargo-dylint builds an internal driver and intentionally unsets RUSTUP_TOOLCHAIN
-  # for that nested build. Use a short-lived cargo shim plus a temporary rustup
-  # default so the nested driver build uses the pinned nightly in its temp dir.
-  PATH="$DYLINT_CARGO_SHIM_DIR:$RUSTUP_BIN_DIR:$PATH" RUSTUP_TOOLCHAIN="$DYLINT_TOOLCHAIN" CARGO_TARGET_DIR="$DYLINT_TARGET_DIR" \
-    cargo-dylint dylint --workspace --lib-path "$DYLINT_NAMED_LIBRARY" -- --all-targets
-  cleanup_dylint_toolchain
-  trap - EXIT
-fi
-
-if [ -n "$DYLINT_SKIP_REASON" ]; then
-  # Local hosts without the dylint prerequisites still get a green lint: every
-  # other stage ran. CI never reaches here -- the guard above fails hard when
-  # $CI is set, so the dylint stage cannot be silently dropped in CI (#262).
-  echo "" >&2
-  echo "==============================================================" >&2
-  echo "dylint not run: $DYLINT_SKIP_REASON" >&2
-  echo "Every other lint stage ran and passed." >&2
-  echo "Install the prerequisite and re-run ./lint for full coverage." >&2
-  echo "==============================================================" >&2
-  echo "Linting complete (dylint skipped)!"
-  exit 0
-fi
 echo Linting complete!
 exit 0
