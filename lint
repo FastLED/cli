@@ -44,8 +44,8 @@ elif ! command -v rustup &> /dev/null; then
   DYLINT_SKIP_REASON="rustup is required for cargo-dylint's internal driver build"
 fi
 
-if [ -n "$DYLINT_SKIP_REASON" ] && [ -n "${CI:-}" ]; then
-  echo "Error: dylint prerequisites are missing in CI: $DYLINT_SKIP_REASON" >&2
+if [ -n "$DYLINT_SKIP_REASON" ]; then
+  echo "Error: dylint prerequisites are missing: $DYLINT_SKIP_REASON" >&2
   exit 1
 fi
 
@@ -112,18 +112,5 @@ EOF
   trap - EXIT
 fi
 
-if [ -n "$DYLINT_SKIP_REASON" ]; then
-  # Local hosts without the dylint prerequisites still get a green lint: every
-  # other stage ran. CI never reaches here -- the guard above fails hard when
-  # $CI is set, so the dylint stage cannot be silently dropped in CI (#262).
-  echo "" >&2
-  echo "==============================================================" >&2
-  echo "dylint not run: $DYLINT_SKIP_REASON" >&2
-  echo "Every other lint stage ran and passed." >&2
-  echo "Install the prerequisite and re-run ./lint for full coverage." >&2
-  echo "==============================================================" >&2
-  echo "Linting complete (dylint skipped)!"
-  exit 0
-fi
 echo Linting complete!
 exit 0

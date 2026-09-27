@@ -79,10 +79,8 @@ def _log_has_match(log_lines: list[str], pattern: str) -> bool:
 def test_python_stages_run_and_cover_ci_without_dylint(tmp_path: Path) -> None:
     result, log_lines = _run_lint(tmp_path, ci=False)
 
-    # Outside CI a missing dylint prerequisite is a loud skip, not a failure:
-    # the other stages all ran, so the script still succeeds.
-    assert result.returncode == 0, (result.stdout, result.stderr)
-    assert "dylint not run" in result.stderr
+    assert result.returncode != 0
+    assert "dylint prerequisites are missing" in result.stderr
 
     # Every Python lint stage must cover src, tests, and ci -- the stub uv
     # collapses "uv run <tool> ..." into a single logged argv line, so match
@@ -112,7 +110,7 @@ def test_missing_dylint_is_a_hard_failure_in_ci(tmp_path: Path) -> None:
     result, log_lines = _run_lint(tmp_path, ci=True)
 
     assert result.returncode != 0
-    assert "Error: dylint prerequisites are missing in CI:" in result.stderr
+    assert "Error: dylint prerequisites are missing:" in result.stderr
     # The failure is reported only after the Python stages have run, so a CI
     # host missing cargo-dylint still reports every Python finding.
     assert _log_has_match(log_lines, r"^uv (run )?pyright src tests ci$")
@@ -131,3 +129,21 @@ def test_python_stages_precede_the_rust_stages(tmp_path: Path) -> None:
     )
 
     assert pyright_index < rust_index
+
+
+@pytest.mark.parametrize(
+    "workflow",
+    [
+        "linux-arm-lint.yml",
+        "macos-arm-lint.yml",
+        "macos-x86-lint.yml",
+        "windows-x86-lint.yml",
+    ],
+)
+def test_native_dylint_runs_on_unlabelled_pr(workflow: str) -> None:
+    source = (REPO_ROOT / ".github" / "workflows" / workflow).read_text(
+        encoding="utf-8"
+    )
+    assert "pull_request:" in source
+    assert "uses: ./.github/workflows/_lint.yml" in source
+    assert "contains(github.event.pull_request.labels.*.name, 'ci-full')" not in source
