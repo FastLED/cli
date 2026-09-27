@@ -3,6 +3,12 @@ set -e
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
+if [[ $# -gt 1 || ($# -eq 1 && "$1" != "--skip-dylint") ]]; then
+  echo "Usage: ./lint [--skip-dylint]" >&2
+  exit 2
+fi
+SKIP_DYLINT=${1:-}
+
 LINT_PATHS=(src tests ci)
 
 # Python stages run first: they need no Rust toolchain, so a host without
@@ -29,13 +35,15 @@ soldr cargo fmt --all --check
 echo Running cargo clippy
 soldr cargo clippy --workspace --all-targets -- -D warnings
 
-echo Running ban_std_pathbuf dylint
-export SOLDR_FORCE_MANAGED_CARGO_SUBCOMMANDS=1
-if ! env -u RUSTUP_TOOLCHAIN soldr dylint prepare; then
-  echo "Error: dylint prerequisites are missing: soldr dylint prepare failed" >&2
-  exit 1
+if [[ "$SKIP_DYLINT" != "--skip-dylint" ]]; then
+  echo Running ban_std_pathbuf dylint
+  export SOLDR_FORCE_MANAGED_CARGO_SUBCOMMANDS=1
+  if ! env -u RUSTUP_TOOLCHAIN soldr dylint prepare; then
+    echo "Error: dylint prerequisites are missing: soldr dylint prepare failed" >&2
+    exit 1
+  fi
+  env -u RUSTUP_TOOLCHAIN soldr dylint --all -- --workspace --all-targets
 fi
-env -u RUSTUP_TOOLCHAIN soldr dylint --all -- --workspace --all-targets
 
 echo Linting complete!
 exit 0
