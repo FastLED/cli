@@ -41,8 +41,12 @@ def test_platform_workflows_have_normalized_tiers():
         assert (
             "types: [opened, synchronize, reopened, labeled, unlabeled]" in workflow
         ), path.name
-        if path.name == "linux-x86-lint.yml":
+        if path.name.endswith("-lint.yml"):
+            # Native Dylint runs on every ordinary PR for all lint platforms
+            # (#274), so lint workflows carry no tier gate at all.
             assert "    if: " not in workflow, path.name
+            assert "'ci-full'" not in workflow, path.name
+            assert "'ci-test'" not in workflow, path.name
         else:
             assert (
                 "    if: github.event_name == 'workflow_dispatch'" in workflow
