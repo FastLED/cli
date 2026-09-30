@@ -75,7 +75,7 @@ jobs:
       # Soldr with `soldr build --target` and the managed macOS SDK; the
       # v0.9.62 action used elsewhere here pins Soldr 0.7.51 (see #158),
       # which has neither.
-      - uses: zackees/setup-soldr@bb28e96d2dc32c058242f56722297caf1efcbd90
+      - uses: zackees/setup-soldr@v0 # v0.9.82 or later (floating major)
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
