@@ -487,3 +487,33 @@ def test_every_release_platform_has_executed_test_step():
             else:
                 step_source = workflow
             assert f"- name: {check['step']}\n" in step_source, check
+
+
+def test_artifact_download_drops_token_at_blob_redirect(monkeypatch):
+    """GitHub 302s artifact zips to a signed blob URL that 401s on auth."""
+    import http.server
+    import threading
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/zip":
+                self.send_response(302)
+                self.send_header("Location", f"http://127.0.0.1:{port}/blob")
+                self.end_headers()
+                return
+            code = 401 if self.headers.get("Authorization") else 200
+            self.send_response(code)
+            self.end_headers()
+            self.wfile.write(b"zipbytes" if code == 200 else b"")
+
+        def log_message(self, format, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    monkeypatch.setenv("GH_TOKEN", "test-token")
+    try:
+        assert verify.download(f"http://127.0.0.1:{port}/zip") == b"zipbytes"
+    finally:
+        server.shutdown()
