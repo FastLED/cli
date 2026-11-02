@@ -5,6 +5,7 @@ import io
 import json
 import os
 import sys
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -33,12 +34,30 @@ def get_json(path):
         return json.load(response)
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def download(url):
+    """Fetch an artifact zip without leaking the token across the redirect.
+
+    GitHub answers with a redirect to a pre-signed blob URL, and that host
+    rejects a request that also carries an Authorization header (HTTP 401).
+    """
     request = urllib.request.Request(
         url,
         headers={"Authorization": f"Bearer {os.environ['GH_TOKEN']}"},
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
+    opener = urllib.request.build_opener(_NoRedirect)
+    try:
+        with opener.open(request, timeout=60) as response:
+            return response.read()
+    except urllib.error.HTTPError as error:
+        location = error.headers.get("Location")
+        if error.code not in (301, 302, 303, 307, 308) or not location:
+            raise
+    with opener.open(urllib.request.Request(location), timeout=60) as response:
         return response.read()
 
 
