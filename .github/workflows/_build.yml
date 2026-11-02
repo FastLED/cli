@@ -110,15 +110,22 @@ jobs:
           linker: platform-default
           toolchain-file: rust-toolchain.ci.toml
 
+      # x86_64-unknown-linux-gnu is the runner's own triple, so it builds
+      # natively, without `--target`. Naming it makes soldr switch to its
+      # glibc-2.17 catalogue sysroot and point PKG_CONFIG_LIBDIR there, which
+      # hides Ubuntu's GTK/WebKit from pkg-config, so glib-sys fails (#285).
+      # The artifact names and wheel plat tag still use inputs.rust-target.
       - name: Build fastled CLI binary (for wheel bundling)
+        env:
+          CARGO_TARGET_TRIPLE: ${{ inputs.rust-target != 'x86_64-unknown-linux-gnu' && inputs.rust-target || '' }}
         run: |
-          if [ -n "${{ inputs.rust-target }}" ]; then
-            soldr cargo build --release --bin fastled --target "${{ inputs.rust-target }}"
-            case "${{ inputs.rust-target }}" in
+          if [ -n "$CARGO_TARGET_TRIPLE" ]; then
+            soldr cargo build --release --bin fastled --target "$CARGO_TARGET_TRIPLE"
+            case "$CARGO_TARGET_TRIPLE" in
               *windows*) EXE_NAME="fastled.exe" ;;
               *)         EXE_NAME="fastled" ;;
             esac
-            BIN_SRC="target/${{ inputs.rust-target }}/release/${EXE_NAME}"
+            BIN_SRC="target/$CARGO_TARGET_TRIPLE/release/${EXE_NAME}"
           else
             soldr cargo build --release --bin fastled
             case "$(uname -s)" in
@@ -174,7 +181,8 @@ jobs:
         env:
           # setup.py rebuilds the bundled binary; keep that rebuild on the
           # requested target, especially Windows ARM on an x64 runner.
-          FASTLED_RUST_TARGET: ${{ inputs.rust-target }}
+          # Native for x86_64 Linux, for the same reason as the build step.
+          FASTLED_RUST_TARGET: ${{ inputs.rust-target != 'x86_64-unknown-linux-gnu' && inputs.rust-target || '' }}
         run: |
           PLAT_NAME=""
           case "${{ inputs.rust-target }}" in
