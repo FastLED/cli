@@ -380,7 +380,25 @@ def test_cross_target_wheel_build_preserves_target_for_setup_py():
     wheel_step = build.split("      - name: Build wheel\n", 1)[1].split(
         "      - name: Smoke test", 1
     )[0]
-    assert "FASTLED_RUST_TARGET: ${{ inputs.rust-target }}" in wheel_step
+    # Cross targets keep their triple; only the runner-native x86_64 Linux
+    # triple is dropped so soldr does not swap in its glibc-2.17 sysroot (#285).
+    native = "inputs.rust-target != 'x86_64-unknown-linux-gnu'"
+    assert (
+        f"FASTLED_RUST_TARGET: ${{{{ {native} && inputs.rust-target || '' }}}}"
+        in wheel_step
+    )
+
+
+def test_native_x86_linux_build_omits_target_so_pkg_config_sees_system_gtk():
+    build = (WORKFLOWS / "_build.yml").read_text()
+    step = build.split("      - name: Build fastled CLI binary", 1)[1].split(
+        "      - name: Build wheel", 1
+    )[0]
+    assert (
+        "CARGO_TARGET_TRIPLE: ${{ inputs.rust-target != "
+        "'x86_64-unknown-linux-gnu' && inputs.rust-target || '' }}"
+    ) in step
+    assert '--target "$CARGO_TARGET_TRIPLE"' in step
 
 
 def test_release_report_validation_rejects_missing_or_wrong_sha_cells():
