@@ -20,7 +20,7 @@ regression from coming back into a different module.
 
 ## Toolchain
 
-Builds against `nightly-2026-05-28` (see `rust-toolchain.toml`). The main
+Builds against `nightly-2026-08-15` (see `rust-toolchain.toml`). The main
 workspace stays on stable; this sub-crate is intentionally not in the
 workspace. The local `[workspace]` table in `Cargo.toml` keeps Cargo from
 implicitly attaching this crate to the parent stable workspace.

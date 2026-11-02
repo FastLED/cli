@@ -34,13 +34,13 @@ def _mock_version_command(
 def test_accepts_exact_cargo_dylint_version(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    calls = _mock_version_command(monkeypatch, "cargo-dylint 6.0.3\n")
+    calls = _mock_version_command(monkeypatch, "cargo-dylint 6.2.0\n")
 
-    result = dylint_version_checker.check_version("cargo-dylint", "6.0.3")
+    result = dylint_version_checker.check_version("cargo-dylint", "6.2.0")
 
     assert result == 0
     assert calls == [["cargo-dylint", "dylint", "--version"]]
-    assert capsys.readouterr().out.strip() == "cargo-dylint 6.0.3"
+    assert capsys.readouterr().out.strip() == "cargo-dylint 6.2.0"
 
 
 def test_rejects_stale_cargo_dylint_version(
@@ -48,11 +48,11 @@ def test_rejects_stale_cargo_dylint_version(
 ) -> None:
     _mock_version_command(monkeypatch, "cargo-dylint 6.0.2\n")
 
-    result = dylint_version_checker.check_version("cargo-dylint", "6.0.3")
+    result = dylint_version_checker.check_version("cargo-dylint", "6.2.0")
 
     assert result != 0
     error = capsys.readouterr().err
-    assert "expected cargo-dylint 6.0.3" in error
+    assert "expected cargo-dylint 6.2.0" in error
     assert "found cargo-dylint 6.0.2" in error
 
 
@@ -61,7 +61,7 @@ def test_rejects_unusable_cargo_dylint(
 ) -> None:
     _mock_version_command(monkeypatch, "", exit_code=1)
 
-    result = dylint_version_checker.check_version("cargo-dylint", "6.0.3")
+    result = dylint_version_checker.check_version("cargo-dylint", "6.2.0")
 
     assert result != 0
     assert "could not query" in capsys.readouterr().err
@@ -75,8 +75,8 @@ def test_lint_entrypoints_enforce_the_exact_pin() -> None:
 
     assert "soldr dylint prepare" in lint_script
     assert "soldr dylint --all -- --workspace --all-targets" in lint_script
-    assert 'cargo-dylint-version: "6.0.3"' in lint_workflow
-    assert "dylint-toolchain: nightly-2026-05-28" in lint_workflow
+    assert 'cargo-dylint-version: "6.2.0"' in lint_workflow
+    assert "dylint-toolchain: nightly-2026-08-15" in lint_workflow
     assert "soldr dylint prepare" in lint_workflow
     assert "soldr cargo install cargo-dylint" not in lint_workflow
     linker_config = (REPO_ROOT / "dylints/ban_std_pathbuf/.cargo/config.toml").read_text(encoding="utf-8")

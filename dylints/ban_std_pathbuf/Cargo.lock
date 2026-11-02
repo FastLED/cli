@@ -189,9 +189,9 @@ dependencies = [
 
 [[package]]
 name = "dylint"
-version = "6.0.3"
+version = "6.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da5d2f27acc9d395eabf8b7001ca856d72e49d4c1c5c3c427c60473fb6112a08"
+checksum = "64fc84e9de2c0198973a04ea6c811ab5e5ad473a96778e7632037638337ee3bc"
 dependencies = [
  "anstyle",
  "anyhow",
@@ -207,9 +207,9 @@ dependencies = [
 
 [[package]]
 name = "dylint_internal"
-version = "6.0.3"
+version = "6.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e56d36d5cf7a909a48854ea667b94421643ae0658868b37e4a842fb3d2c6d30e"
+checksum = "1b23bb0eed3a1137546ae2bfda5e76aa83454bfd852cf7ca63d43ceeef6216d7"
 dependencies = [
  "anstyle",
  "anyhow",
@@ -218,18 +218,23 @@ dependencies = [
  "git2",
  "home",
  "log",
+ "pastey",
  "regex",
+ "semver",
  "serde",
+ "serde_json",
  "tar",
+ "tempfile",
  "thiserror 2.0.18",
  "toml",
+ "toml_edit",
 ]
 
 [[package]]
 name = "dylint_linting"
-version = "6.0.3"
+version = "6.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "561e06d4cbeeaf506d1bce9e92dc737a83f143e8121d09db825b6d4b4bf55728"
+checksum = "82f139abf7237e111749e13461e10345e390a21cf6be465247194aff974d278f"
 dependencies = [
  "cargo_metadata",
  "dylint_internal",
@@ -242,9 +247,9 @@ dependencies = [
 
 [[package]]
 name = "dylint_testing"
-version = "6.0.3"
+version = "6.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "616d3ae583c7daa06c035fcb4e9c3f1c84e14dc1f8bfc05aefcd57fe72a1902e"
+checksum = "da0a7bcb693c0613b543fdef1a7864562193eb91959a6ecd3a560979c55c3ff3"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -254,7 +259,6 @@ dependencies = [
  "env_logger",
  "once_cell",
  "regex",
- "serde_json",
  "tempfile",
 ]
 
@@ -589,6 +593,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
+name = "pastey"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -918,6 +928,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml_edit"
+version = "0.25.12+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2153edc6955a6c354fad8f5efd38b6a8769bdccf9fe50f8e1329f81b0baa5d7"
+dependencies = [
+ "indexmap",
+ "toml_datetime",
+ "toml_parser",
+ "toml_writer",
+ "winnow",
+]
+
+[[package]]
 name = "toml_parser"
 version = "1.1.2+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1154,6 +1177,9 @@ name = "winnow"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0592e1c9d151f854e6fd382574c3a0855250e1d9b2f99d9281c6e6391af352f1"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "wit-bindgen"
