@@ -506,7 +506,7 @@ def test_artifact_download_drops_token_at_blob_redirect(monkeypatch):
             self.end_headers()
             self.wfile.write(b"zipbytes" if code == 200 else b"")
 
-        def log_message(self, *args):
+        def log_message(self, format, *args):
             pass
 
     server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
