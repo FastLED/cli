@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -79,5 +78,7 @@ def test_lint_entrypoints_enforce_the_exact_pin() -> None:
     assert "dylint-toolchain: nightly-2026-05-28" in lint_workflow
     assert "soldr dylint prepare" in lint_workflow
     assert "soldr cargo install cargo-dylint" not in lint_workflow
-    linker_config = (REPO_ROOT / "dylints/ban_std_pathbuf/.cargo/config.toml").read_text(encoding="utf-8")
+    linker_config = (
+        REPO_ROOT / "dylints/ban_std_pathbuf/.cargo/config.toml"
+    ).read_text(encoding="utf-8")
     assert 'rustflags = ["-C", "linker=dylint-link"]' in linker_config

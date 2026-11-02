@@ -120,7 +120,9 @@ def test_missing_dylint_is_a_hard_failure_in_ci(tmp_path: Path) -> None:
     assert _log_has_match(log_lines, r"^uv (run )?pyright src tests ci$")
 
 
-def test_explicit_skip_keeps_other_lints_but_does_not_run_dylint(tmp_path: Path) -> None:
+def test_explicit_skip_keeps_other_lints_but_does_not_run_dylint(
+    tmp_path: Path,
+) -> None:
     result, log_lines = _run_lint(tmp_path, ci=True, args=("--skip-dylint",))
     assert result.returncode == 0
     assert any(line.startswith("soldr cargo clippy") for line in log_lines)
