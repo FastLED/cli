@@ -107,18 +107,44 @@ jobs:
   build-windows-x86:
     needs: [detect-version]
     if: needs.detect-version.outputs.should_release == 'true'
+    # id-token: write for the Azure OIDC login that Authenticode-signs
+    # fastled.exe inside _build.yml (environment: release subject).
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/_build.yml
     with:
       runs-on: windows-2025
       rust-target: x86_64-pc-windows-msvc
+      sign-windows: true
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+      AZURE_SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+      AZURE_SIGNING_PROFILE: ${{ secrets.AZURE_SIGNING_PROFILE }}
+      AZURE_SIGN_PUBLISHER: ${{ secrets.AZURE_SIGN_PUBLISHER }}
 
   build-windows-arm:
     needs: [detect-version]
     if: needs.detect-version.outputs.should_release == 'true'
+    # id-token: write for the Azure OIDC login that Authenticode-signs
+    # fastled.exe inside _build.yml (environment: release subject).
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/_build.yml
     with:
       runs-on: windows-2025
       rust-target: aarch64-pc-windows-msvc
+      sign-windows: true
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+      AZURE_SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+      AZURE_SIGNING_PROFILE: ${{ secrets.AZURE_SIGNING_PROFILE }}
+      AZURE_SIGN_PUBLISHER: ${{ secrets.AZURE_SIGN_PUBLISHER }}
 
   build-macos-x86:
     needs: [detect-version]
