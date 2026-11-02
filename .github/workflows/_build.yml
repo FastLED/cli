@@ -18,11 +18,36 @@ on:
         required: false
         type: boolean
         default: false
+      sign-windows:
+        description: >-
+          Authenticode-sign fastled.exe via Azure Artifact Signing before it is
+          bundled or uploaded (auto-release.yml only; the caller must grant
+          id-token: write and pass the AZURE_* secrets).
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      AZURE_CLIENT_ID:
+        required: false
+      AZURE_TENANT_ID:
+        required: false
+      AZURE_SIGNING_ENDPOINT:
+        required: false
+      AZURE_SIGNING_ACCOUNT:
+        required: false
+      AZURE_SIGNING_PROFILE:
+        required: false
+      AZURE_SIGN_PUBLISHER:
+        required: false
 
 jobs:
   build:
     runs-on: ${{ inputs.runs-on }}
     timeout-minutes: 30
+    # Release dispatches come from a candidate branch, not main, so the OIDC
+    # subject must be environment-form for Azure to trust it. Unsigned builds
+    # declare no environment.
+    environment: ${{ inputs.sign-windows && 'release' || '' }}
     defaults:
       run:
         shell: bash
@@ -116,6 +141,35 @@ jobs:
           cp -f "$BIN_SRC" "src/fastled/bin/${EXE_NAME}"
           ls -lh src/fastled/bin/
 
+      # Azure Artifact Signing (Authenticode), OIDC only. Signs the cargo
+      # output in place (setup.py re-copies it into the wheel) and the bundled
+      # copy, before the wheel is built or anything is uploaded, so the
+      # release zip, the PyPI wheel and the binary artifact carry signed bytes.
+      - name: Azure login for Authenticode signing
+        if: inputs.sign-windows && github.event_name != 'pull_request'
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Authenticode-sign fastled.exe
+        if: inputs.sign-windows && github.event_name != 'pull_request'
+        env:
+          AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          AZURE_SIGNING_PROFILE: ${{ secrets.AZURE_SIGNING_PROFILE }}
+          AZURE_SIGN_PUBLISHER: ${{ secrets.AZURE_SIGN_PUBLISHER }}
+          RUST_TARGET: ${{ inputs.rust-target }}
+        run: |
+          case "$RUST_TARGET" in
+            *-pc-windows-msvc) ;;
+            *) echo "::error::sign-windows requires a Windows rust-target, got '$RUST_TARGET'" >&2; exit 1 ;;
+          esac
+          python ci/sign_windows_release.py sign \
+            --file "target/$RUST_TARGET/release/fastled.exe" \
+            --file src/fastled/bin/fastled.exe
+
       - name: Build wheel
         env:
           # setup.py rebuilds the bundled binary; keep that rebuild on the
@@ -137,6 +191,23 @@ jobs:
           else
             uv run --with "setuptools>=69" --with "wheel>=0.43" python setup.py bdist_wheel
           fi
+
+      # Fail closed: the bytes that ship (wheel member and binary artifact)
+      # must carry the signature, and Windows must report it Valid.
+      - name: Verify shipped Windows binaries are signed
+        if: inputs.sign-windows && github.event_name != 'pull_request'
+        env:
+          AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          AZURE_SIGNING_PROFILE: ${{ secrets.AZURE_SIGNING_PROFILE }}
+          AZURE_SIGN_PUBLISHER: ${{ secrets.AZURE_SIGN_PUBLISHER }}
+        run: |
+          shopt -s nullglob
+          wheels=(dist/*.whl)
+          test "${#wheels[@]}" -eq 1
+          python ci/sign_windows_release.py verify \
+            --file src/fastled/bin/fastled.exe --wheel "${wheels[0]}"
+          python ci/sign_windows_release.py smoke --file src/fastled/bin/fastled.exe
 
       # Installs the wheel into a fresh venv and runs the packaged console
       # script outside this checkout, in the shipped viewer.
