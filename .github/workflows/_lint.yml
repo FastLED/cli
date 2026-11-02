@@ -82,9 +82,9 @@ jobs:
           # the dylint driver dir, exposing dylint-cache-hit so we can skip the
           # expensive cargo installs below (#170).
           dylint-cache: ${{ inputs.run-dylint }}
-          dylint-toolchain: nightly-2026-05-28
-          cargo-dylint-version: "6.0.3"
-          dylint-link-version: "6.0.3"
+          dylint-toolchain: nightly-2026-08-15
+          cargo-dylint-version: "6.2.0"
+          dylint-link-version: "6.2.0"
 
       - name: Sync Python deps
         run: uv sync --group dev
