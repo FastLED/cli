@@ -150,7 +150,9 @@ def main() -> int:
     parser.add_argument("--fastled", required=True)
     parser.add_argument("--serve-dir", required=True)
     parser.add_argument("--artifacts", required=True, type=Path)
-    parser.add_argument("--ready-timeout", type=float, default=120)
+    # Hosted macOS ARM runners render ~2 FPS here, so 30 frames took the whole
+    # 120 s and failed at 29. The loop exits as soon as FRAMES_REQUIRED is met.
+    parser.add_argument("--ready-timeout", type=float, default=300)
     args = parser.parse_args()
     args.artifacts.mkdir(parents=True, exist_ok=True)
 
