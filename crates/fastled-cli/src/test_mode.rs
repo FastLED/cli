@@ -807,7 +807,11 @@ mod tests {
                     .await
                     .expect("command runner task did not complete before the test deadline")
                     .unwrap();
-                assert!(result.is_ok());
+                // Report the runner's message: this has failed intermittently
+                // on hosted macOS runners and a bare is_ok() hid the cause.
+                if let Err(error) = result {
+                    panic!("command runner returned an error: {error}");
+                }
                 async_engine::sleep(Duration::from_millis(300)).await;
                 assert!(!temp.path().join("late.txt").exists());
             });
