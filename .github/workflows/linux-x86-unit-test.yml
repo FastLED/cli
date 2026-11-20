@@ -19,8 +19,10 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # ci-test PRs share the verifier in linux-x86-lint.yml. Keep this cell
+  # for ci-full PR coverage and exact-SHA release dispatches.
   call:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci-test') || contains(github.event.pull_request.labels.*.name, 'ci-full')))
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'ci-full'))
     uses: ./.github/workflows/_unit-test.yml
     with:
       source-sha: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}

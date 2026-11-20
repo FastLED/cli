@@ -20,6 +20,11 @@ PLATFORMS = {
     "macos-x86",
     "macos-arm",
 }
+# The x86 Linux lint workflow also serves ordinary PRs. These two jobs
+# are expected to skip during exact-SHA dispatch and ci-full PR runs.
+PR_ONLY_JOBS = {
+    "linux-x86-lint.yml": {"Verify local attestations", "Linux x86 Unit Test"},
+}
 POLL_SECONDS = 120  # 29 workflows × runs/jobs endpoints; stay well below API limits.
 
 
@@ -27,7 +32,7 @@ def parse_time(value):
     return dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def cell_result(run, jobs, sha, event, earliest):
+def cell_result(run, jobs, sha, event, earliest, *, pr_only_jobs=()):
     if run["head_sha"] != sha or run["event"] != event:
         return "wrong-sha-or-event"
     if parse_time(run["created_at"]) < earliest:
@@ -36,9 +41,13 @@ def cell_result(run, jobs, sha, event, earliest):
         return "pending"
     if run["conclusion"] != "success":
         return run["conclusion"] or "failed"
-    if not jobs:
+    if not any(job.get("name") not in pr_only_jobs for job in jobs):
         return "missing-jobs"
-    if any(job["conclusion"] != "success" for job in jobs):
+    if any(
+        job["conclusion"] != "success"
+        and not (job.get("name") in pr_only_jobs and job["conclusion"] == "skipped")
+        for job in jobs
+    ):
         return "skipped-or-failed-job"
     return "passed"
 
@@ -104,7 +113,14 @@ def collect(repo, sha, event, earliest, workflows):
         if run["status"] == "completed":
             jobs = pages(f"repos/{repo}/actions/runs/{run['id']}/jobs", "jobs")
         report[workflow] = {
-            "result": cell_result(run, jobs, sha, event, earliest),
+            "result": cell_result(
+                run,
+                jobs,
+                sha,
+                event,
+                earliest,
+                pr_only_jobs=PR_ONLY_JOBS.get(workflow, ()),
+            ),
             "run_id": run["id"],
             "url": run["html_url"],
             "jobs": [

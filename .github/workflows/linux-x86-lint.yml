@@ -19,9 +19,53 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  verify:
+    name: Verify local attestations
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !contains(github.event.pull_request.labels.*.name, 'ci-full')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      skip_call: ${{ steps.plan.outputs.skip_call }}
+      skip_unit: ${{ steps.plan.outputs.skip_unit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+      - name: Plan PR gates from the base
+        id: plan
+        if: hashFiles('ci/prooft_verify.py') != '' && hashFiles('ci-attestations.yml') != ''
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: uv run --no-project python ci/prooft_verify.py "$BASE_SHA" "$HEAD_SHA" "$PR_TITLE"
+
   call:
+    name: Lint (format, Clippy, Dylint)
+    needs: verify
+    if: ${{ !cancelled() && needs.verify.outputs.skip_call != 'true' }}
     uses: ./.github/workflows/_lint.yml
     with:
       source-sha: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       runs-on: ubuntu-24.04
       run-dylint: true
+
+  unit:
+    name: Linux x86 Unit Test
+    needs: verify
+    if: >-
+      !cancelled() && github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'ci-test') &&
+      !contains(github.event.pull_request.labels.*.name, 'ci-full') &&
+      needs.verify.outputs.skip_unit != 'true'
+    uses: ./.github/workflows/_unit-test.yml
+    with:
+      source-sha: ${{ github.event.pull_request.head.sha }}
+      runs-on: ubuntu-24.04
