@@ -1,11 +1,30 @@
 # Fractional CI and release gate
 
-Ordinary pull requests and `main` updates run the Linux x86 lint gate. The
-literal `ci-test` PR label adds Linux x86 unit and integration tests. The
-`ci-full` label runs every declared platform workflow. Adding or removing a
-label retriggers the workflows; `ci-full` includes the `ci-test` cells.
+Main updates run the hosted Linux x86 lint gate. Ordinary pull requests can
+reuse fresh local proof for that gate. The literal `ci-test` PR label requests
+Linux x86 unit and integration tests. A fresh unit-test proof can satisfy the
+unit-test job.
+
+The `ci-full` label runs every declared platform workflow and includes the
+`ci-test` cells. Adding or removing a label retriggers the workflows.
 The `ci-test:windows-arm` label runs only Windows ARM unit and integration
 tests for a targeted diagnosis. It does not satisfy the full-coverage gate.
+
+## Publish an attested PR
+
+Run `./push` from a clean Linux x86-64 feature branch. It attests `./lint`
+and `./test`, verifies the stamps on HEAD, pushes the branch, and opens the
+PR. Use `./push --label ci-test` at creation to request Linux integration
+coverage. Use `--prove-only` to stamp HEAD without publishing or `--no-pr`
+to push without opening a PR. `--remote` selects a Git remote.
+
+Prooft reuses a lane's proof for up to 24 hours while its tracked inputs
+stay unchanged. Attestation skips apply to the Linux x86 PR lint and
+unit-test jobs. Forks, changes to workflows or the attestation policy,
+`ci-full` PR runs, and exact-SHA release runs execute the applicable gates
+on GitHub.
+
+## Verify release coverage
 
 The versioned platform manifest is [`ci/full_coverage.json`](../ci/full_coverage.json).
 [`full-coverage.yml`](../.github/workflows/full-coverage.yml) polls the real
