@@ -41,7 +41,15 @@ def test_platform_workflows_have_normalized_tiers():
         assert (
             "types: [opened, synchronize, reopened, labeled, unlabeled]" in workflow
         ), path.name
-        if path.name.endswith("-lint.yml"):
+        if path.name == "linux-x86-lint.yml":
+            assert "needs.verify.outputs.skip_call != 'true'" in workflow
+            assert "needs.verify.outputs.skip_unit != 'true'" in workflow
+            assert "'ci-test'" in workflow
+            assert (
+                "!contains(github.event.pull_request.labels.*.name, 'ci-full')"
+                in workflow
+            )
+        elif path.name.endswith("-lint.yml"):
             # Native Dylint runs on every ordinary PR for all lint platforms
             # (#274), so lint workflows carry no tier gate at all.
             assert "    if: " not in workflow, path.name
@@ -52,10 +60,7 @@ def test_platform_workflows_have_normalized_tiers():
                 "    if: github.event_name == 'workflow_dispatch'" in workflow
             ), path.name
             assert "'ci-full'" in workflow, path.name
-            if path.name in {
-                "linux-x86-unit-test.yml",
-                "linux-x86-integration-test.yml",
-            }:
+            if path.name == "linux-x86-integration-test.yml":
                 assert "'ci-test'" in workflow, path.name
             else:
                 assert "'ci-test'" not in workflow, path.name
@@ -307,6 +312,46 @@ def test_full_coverage_manifest_and_fail_closed_results():
             run, [{"conclusion": "success"}], sha, "workflow_dispatch", earliest
         )
         == "wrong-sha-or-event"
+    )
+
+
+@pytest.mark.parametrize("event", ["pull_request", "workflow_dispatch"])
+def test_full_coverage_requires_lint_when_attestation_jobs_skip(event):
+    workflow = "linux-x86-lint.yml"
+    source = (WORKFLOWS / workflow).read_text()
+    pr_only_jobs = coverage.PR_ONLY_JOBS[workflow]
+    for name in pr_only_jobs:
+        assert f"    name: {name}\n" in source
+    sha = "a" * 40
+    created = "2026-11-20T00:00:00Z"
+    run = {
+        "head_sha": sha,
+        "event": event,
+        "created_at": created,
+        "status": "completed",
+        "conclusion": "success",
+    }
+    auxiliary = [{"name": name, "conclusion": "skipped"} for name in pr_only_jobs]
+    lint = {"name": "Lint (format, Clippy, Dylint) / lint", "conclusion": "success"}
+    earliest = coverage.parse_time(created)
+    assert (
+        coverage.cell_result(
+            run, [*auxiliary, lint], sha, event, earliest, pr_only_jobs=pr_only_jobs
+        )
+        == "passed"
+    )
+    assert (
+        coverage.cell_result(
+            run, auxiliary, sha, event, earliest, pr_only_jobs=pr_only_jobs
+        )
+        == "missing-jobs"
+    )
+    lint["conclusion"] = "skipped"
+    assert (
+        coverage.cell_result(
+            run, [*auxiliary, lint], sha, event, earliest, pr_only_jobs=pr_only_jobs
+        )
+        == "skipped-or-failed-job"
     )
 
 

@@ -1,0 +1,16 @@
+version: 1
+lanes:
+  lint:
+    inputs: ["crates/**", "dylints/**", "src/**", "ci/**", "tests/**", "examples/**", "demo/**", "vscode-plugin/**", ".github/workflows/_lint.yml", Cargo.toml, Cargo.lock, rust-toolchain.toml, pyproject.toml, uv.lock, setup.py, MANIFEST.in, README.md, LICENSE, lint, push, ci-attestations.yml]
+  test:
+    inputs: ["crates/**", "dylints/**", "src/**", "ci/**", "tests/**", "examples/**", "demo/**", "vscode-plugin/**", ".github/workflows/**", Cargo.toml, Cargo.lock, rust-toolchain.toml, pyproject.toml, uv.lock, setup.py, MANIFEST.in, README.md, LICENSE, lint, test, push, ci-attestations.yml]
+gates:
+  general/linux-x64/lint: {lane: lint}
+  rust/all/fmt: {lane: lint}
+  rust/x86_64-unknown-linux-gnu/clippy: {lane: lint}
+  rust/x86_64-unknown-linux-gnu/dylint: {lane: lint}
+  rust/x86_64-unknown-linux-gnu/test: {lane: test}
+  python/linux-x64/test: {lane: test}
+jobs:
+  linux-x86-lint.yml:call: [general/linux-x64/lint, rust/all/fmt, rust/x86_64-unknown-linux-gnu/clippy, rust/x86_64-unknown-linux-gnu/dylint]
+  linux-x86-lint.yml:unit: [rust/x86_64-unknown-linux-gnu/test, python/linux-x64/test]
