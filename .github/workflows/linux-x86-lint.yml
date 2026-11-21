@@ -19,6 +19,37 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Runner selection for the Lint call. pool-select (forge-ci/ci.yml
+  # actions/pool-select) reads the forge pool's tokenless status endpoint and
+  # answers with the repository variable FORGE_POOL_LABELS (the self-hosted
+  # Dell pool, Ubuntu 24.04 image) when the pool has an idle matching runner
+  # and the event is trusted: push, workflow_dispatch, or a pull request from
+  # this repository. Fork pull requests, an unset variable, or any error give
+  # ubuntu-24.04. The selector itself runs on forge-quick
+  # (vars.FORGE_QUICK_LABELS), never for a fork pull request. Unset either
+  # variable to fall back to hosted.
+  pool:
+    name: Select runner
+    if: >-
+      vars.FORGE_POOL_LABELS != ''
+      && (github.event_name == 'push'
+          || github.event_name == 'workflow_dispatch'
+          || (github.event_name == 'pull_request'
+              && github.event.pull_request.head.repo.full_name == github.repository))
+    runs-on: ${{ vars.FORGE_QUICK_LABELS != '' && fromJSON(vars.FORGE_QUICK_LABELS) || 'ubuntu-latest' }}
+    timeout-minutes: 2
+    permissions: {}
+    outputs:
+      runs-on: ${{ steps.select.outputs.runs-on || '"ubuntu-24.04"' }}
+    steps:
+      - name: Select pool or hosted
+        id: select
+        continue-on-error: true
+        uses: forge-ci/ci.yml/actions/pool-select@a36bc81ad6ada5fb17398e3e7ba38435cc67a951
+        with:
+          labels: ${{ vars.FORGE_POOL_LABELS }}
+          fallback: ubuntu-24.04
+
   verify:
     name: Verify local attestations
     if: >-
@@ -49,12 +80,15 @@ jobs:
 
   call:
     name: Lint (format, Clippy, Dylint)
-    needs: verify
+    needs: [verify, pool]
     if: ${{ !cancelled() && needs.verify.outputs.skip_call != 'true' }}
     uses: ./.github/workflows/_lint.yml
     with:
       source-sha: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       runs-on: ubuntu-24.04
+      # Only a selector that ran has an answer (act passes a skipped job's
+      # outputs on unevaluated); otherwise runs-on above applies.
+      pool-runs-on: ${{ needs.pool.result == 'success' && needs.pool.outputs.runs-on || '' }}
       run-dylint: true
 
   unit:

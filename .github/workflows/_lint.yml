@@ -10,6 +10,12 @@ on:
       runs-on:
         required: true
         type: string
+      # JSON runs-on chosen by a caller's forge-pool selector (pool-select).
+      # Empty keeps `runs-on`, which still names caches and artifacts.
+      pool-runs-on:
+        required: false
+        type: string
+        default: ""
       run-dylint:
         required: false
         type: boolean
@@ -17,7 +23,7 @@ on:
 
 jobs:
   lint:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ inputs.pool-runs-on != '' && fromJSON(inputs.pool-runs-on) || inputs.runs-on }}
     timeout-minutes: 30
     env:
       SOLDR_FORCE_MANAGED_CARGO_SUBCOMMANDS: "1"
