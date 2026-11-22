@@ -12,11 +12,16 @@ tests for a targeted diagnosis. It does not satisfy the full-coverage gate.
 
 ## Publish an attested PR
 
-Run `./push` from a clean Linux x86-64 feature branch. It attests `./lint`
-and `./test`, verifies the stamps on HEAD, pushes the branch, and opens the
-PR. Use `./push --label ci-test` at creation to request Linux integration
-coverage. Use `--prove-only` to stamp HEAD without publishing or `--no-pr`
-to push without opening a PR. `--remote` selects a Git remote.
+Run `./push` from a clean Linux x86-64 feature branch. It is a thin
+delegate to the prooft runner (`prooft --push`, ci.yml GATE-014), pinned in
+[`ci/prooft_verify.py`](../ci/prooft_verify.py). The runner runs the
+lint-stage lanes of [`ci-attestations.yml`](../ci-attestations.yml) first
+(`./lint`), stamps HEAD, pushes the branch with a lease, and opens or reuses
+the PR. `./push --test` also attests the unit-test lane (`./test`) after lint
+passes. `--no-pr` pushes without opening a PR, `--remote` selects a Git
+remote, and `--dry-run` prints the steps. Run bare `prooft` (no `--push`) to
+stamp HEAD without publishing. Add the `ci-test` label to the PR to request
+Linux integration coverage.
 
 Prooft reuses a lane's proof for up to 24 hours while its tracked inputs
 stay unchanged. Attestation skips apply to the Linux x86 PR lint and
