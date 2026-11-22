@@ -7,6 +7,8 @@ Lint first, `--test` adds the test lane, then a lease push and the PR are opened
 import os
 import sys
 
-from ci.prooft_verify import PROOFT_SOURCE
+from ci.prooft_verify import PROOFT_SOURCE, require_attesting_host
+
+require_attesting_host()
 
 os.execvp("uvx", ["uvx", "--from", PROOFT_SOURCE, "prooft", "--push", *sys.argv[1:]])

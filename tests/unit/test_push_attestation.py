@@ -16,10 +16,14 @@ POLICY = ROOT / "ci-attestations.yml"
 def delegate(monkeypatch):
     """Run ./push in-process with os.execvp captured instead of replacing pytest."""
     import os
+    import platform
     import sys
 
     calls = []
     monkeypatch.syspath_prepend(str(ROOT))
+    monkeypatch.setattr(platform, "system", lambda: "Linux")
+    monkeypatch.setattr(platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(platform, "libc_ver", lambda: ("glibc", "2.39"))
     monkeypatch.setattr(os, "execvp", lambda file, argv: calls.append((file, argv)))
 
     def run(*args: str):
@@ -37,6 +41,22 @@ def test_push_execs_the_pinned_prooft_runner(delegate, args):
     assert delegate(*args) == [
         ("uvx", ["uvx", "--from", PROOFT_SOURCE, "prooft", "--push", *args])
     ]
+
+
+@pytest.mark.parametrize(
+    ("system", "machine", "libc"),
+    [("Darwin", "x86_64", ""), ("Linux", "aarch64", "glibc"), ("Linux", "x86_64", "")],
+)
+def test_push_refuses_hosts_the_gates_do_not_name(
+    delegate, monkeypatch, system, machine, libc
+):
+    import platform
+
+    monkeypatch.setattr(platform, "system", lambda: system)
+    monkeypatch.setattr(platform, "machine", lambda: machine)
+    monkeypatch.setattr(platform, "libc_ver", lambda: (libc, ""))
+    with pytest.raises(SystemExit, match="Linux x86_64 with glibc"):
+        delegate()
 
 
 def test_push_is_a_thin_python_delegate():
