@@ -1,8 +1,13 @@
 version: 1
 lanes:
+  # `run`: what the bare `prooft` runner (and so `./push`) executes; lint runs before tests.
   lint:
+    stage: lint
+    run: [./lint]
     inputs: ["crates/**", "dylints/**", "src/**", "ci/**", "tests/**", "examples/**", "demo/**", "vscode-plugin/**", ".github/workflows/_lint.yml", Cargo.toml, Cargo.lock, rust-toolchain.toml, pyproject.toml, uv.lock, setup.py, MANIFEST.in, README.md, LICENSE, lint, push, ci-attestations.yml]
   test:
+    stage: test
+    run: [uv, run, --no-project, python, ci/attest_test.py]
     inputs: ["crates/**", "dylints/**", "src/**", "ci/**", "tests/**", "examples/**", "demo/**", "vscode-plugin/**", ".github/workflows/**", Cargo.toml, Cargo.lock, rust-toolchain.toml, pyproject.toml, uv.lock, setup.py, MANIFEST.in, README.md, LICENSE, lint, test, push, ci-attestations.yml]
 gates:
   general/linux-x64/lint: {lane: lint}

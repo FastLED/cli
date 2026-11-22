@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PROOFT_SOURCE = (
-    "git+https://github.com/forge-ci/prooft@d08d58bebcd8592e4526b9bde9ca4717966a8786"
+    "git+https://github.com/forge-ci/prooft@cf897d4a49735c880c22c5994f5c95ac63a2d352"
 )
 
 
